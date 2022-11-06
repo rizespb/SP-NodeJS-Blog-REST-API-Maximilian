@@ -31,6 +31,17 @@ app.use((req, res, next) => {
 
 app.use('/feed', feedRoutes)
 
+// Обработчик ошибок
+app.use((error, req, res, next) => {
+  console.log('Error from app Error Handler: ', error)
+
+  const status = error.statusCode || 500
+  const message = error.message
+  res.status(status).json({
+    message: message,
+  })
+})
+
 mongoose
   .connect('mongodb+srv://testuser:testpassword@cluster0.qowv7.mongodb.net/blog?retryWrites=true&w=majority')
   .then((result) => {

@@ -25,10 +25,10 @@ exports.getPosts = (req, res, next) => {
 exports.createPost = (req, res, next) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
-    return res.status(422).json({
-      message: 'Validation failed, entered data is incorrect',
-      errors: errors.array(),
-    })
+    const error = new Error('Validation failed, entered data is incorrect')
+    error.statusCode = 422
+
+    throw error
   }
 
   const title = req.body.title
@@ -52,6 +52,12 @@ exports.createPost = (req, res, next) => {
       })
     })
     .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500
+      }
       console.log('Error from createPost post.save(): ', err)
+
+      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+      next(err)
     })
 }
