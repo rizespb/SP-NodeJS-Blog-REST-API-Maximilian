@@ -1,3 +1,5 @@
+const path = require('path')
+
 const express = require('express')
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
@@ -11,6 +13,11 @@ const app = express()
 
 // Для парсинга json-данных
 app.use(bodyParser.json())
+
+// Все завпросы /images обрабатываем как статические
+// Строим абсолютный путь к файлу
+// __dirname -  папка, где лежит текущий файл app.js
+app.use('/images', express.static(path.join(__dirname, 'images')))
 
 // Настройка CORS
 app.use((req, res, next) => {
