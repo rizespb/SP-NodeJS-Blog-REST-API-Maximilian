@@ -21,6 +21,7 @@ const postSchema = new Schema(
     },
   },
   // mongoose будет автоматически доавлять timestamp в коллекцию при добавлении или обновлении документа
+  // поля createdAt и  updatedAt
   { timestamps: true }
 )
 
