@@ -18,7 +18,8 @@ const fileStorage = multer.diskStorage({
   },
   // filename - имя файла
   filename: (req, file, callback) => {
-    callback(null, Date.now() + '-' + file.originalname)
+    // Мое исправление: replace(/:/g, '-')
+    callback(null, new Date().toISOString().replace(/:/g, '-') + '-' + file.originalname)
   },
 })
 
