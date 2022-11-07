@@ -170,6 +170,41 @@ exports.updatePost = (req, res, next) => {
     })
 }
 
+// Удаление поста по ID
+exports.deletePost = (req, res, next) => {
+  const postId = req.params.postId
+
+  Post.findById(postId)
+    .then((post) => {
+      if (!post) {
+        const error = new Error('Could not find post')
+        error.statusCode = 404
+
+        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+        throw error
+      }
+
+      // Check logged in user
+
+      clearImage(post.imageUrl)
+
+      return Post.findByIdAndRemove(postId)
+    })
+    .then((result) => {
+      console.log(result)
+      res.status(200).json({ message: 'Deleted post' })
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500
+      }
+      console.log('Error from deletePost Post.findById(): ', err)
+
+      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+      next(err)
+    })
+}
+
 // Удаление страого изображения в случае загрузки нового изображения пр иобновлении поста
 const clearImage = (filePath) => {
   filePath = path.join(__dirname, '..', filePath)
