@@ -33,13 +33,21 @@ exports.createPost = (req, res, next) => {
     throw error
   }
 
+  // Запрос должен содержать файл изоюражения для поста
+  // В req.file его поместит Multer после парсинга body
+  if (!req.file) {
+    const error = new Error('No image provided')
+    throw error
+  }
+
+  const imageUrl = req.file.path
   const title = req.body.title
   const content = req.body.content
 
   const post = new Post({
     title: title,
     content: content,
-    imageUrl: 'images/boat.jpg',
+    imageUrl: imageUrl,
     creator: {
       name: 'Ivan',
     },

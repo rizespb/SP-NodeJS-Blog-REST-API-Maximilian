@@ -3,10 +3,35 @@ const path = require('path')
 const express = require('express')
 const bodyParser = require('body-parser')
 const mongoose = require('mongoose')
+// multer - парсер для извлечения файлов из body
+const multer = require('multer')
 
 const feedRoutes = require('./routes/feed')
 
 const app = express()
+
+// Конфигурация хранилища для файлов для multer
+const fileStorage = multer.diskStorage({
+  // destination - имя папки для сохранения
+  destination: (req, file, callback) => {
+    callback(null, 'images')
+  },
+  // filename - имя файла
+  filename: (req, file, callback) => {
+    callback(null, Date.now() + '-' + file.originalname)
+  },
+})
+
+// Фильтруем файлы по типу
+const fileFilter = (req, file, callback) => {
+  if (file.mimetype === 'image/png' || file.mimetype === 'image/jpg' || file.mimetype === 'image/jpeg') {
+    // true - если реашем сохранять файл
+    callback(null, true)
+  } else {
+    // false - если реашем не сохранять файл
+    callback(null, false)
+  }
+}
 
 // Для парсинга данных из форм
 // app.use(bodyParser.urlencoded()) // x-www-form-urlencoded
@@ -14,7 +39,12 @@ const app = express()
 // Для парсинга json-данных
 app.use(bodyParser.json())
 
-// Все завпросы /images обрабатываем как статические
+// storage - конфигурация хранилища файлов
+// fileFilter - фильтр файлов (в нашем случае по расширению)
+// image - файл будет в поле image body
+app.use(multer({ storage: fileStorage, fileFilter: fileFilter }).single('image'))
+
+// Все запросы /images обрабатываем как статические
 // Строим абсолютный путь к файлу
 // __dirname -  папка, где лежит текущий файл app.js
 app.use('/images', express.static(path.join(__dirname, 'images')))
