@@ -5,20 +5,22 @@ const Post = require('../models/post')
 
 // Получить посты
 exports.getPosts = (req, res, next) => {
-  res.json({
-    posts: [
-      {
-        _id: '1',
-        title: 'First Post',
-        content: 'This is the first post!',
-        imageUrl: 'images/boat.jpg',
-        creator: {
-          name: 'Ivan',
-        },
-        createdAt: new Date().toLocaleString(),
-      },
-    ],
-  })
+  Post.find()
+    .then((posts) => {
+      res.status(200).json({
+        message: 'Fetched posts successfully',
+        posts: posts,
+      })
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500
+      }
+      console.log('Error from getPosts Post.find(): ', err)
+
+      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+      next(err)
+    })
 }
 
 // Создать новый пост
@@ -37,7 +39,7 @@ exports.createPost = (req, res, next) => {
   const post = new Post({
     title: title,
     content: content,
-    imageUrl: 'images/boat.js',
+    imageUrl: 'images/boat.jpg',
     creator: {
       name: 'Ivan',
     },
@@ -56,6 +58,36 @@ exports.createPost = (req, res, next) => {
         err.statusCode = 500
       }
       console.log('Error from createPost post.save(): ', err)
+
+      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+      next(err)
+    })
+}
+
+// Получение отдельного поста
+exports.getPost = (req, res, next) => {
+  const postId = req.params.postId
+
+  Post.findById(postId)
+    .then((post) => {
+      if (!post) {
+        const error = new Error('Could not find post')
+        error.statusCode = 404
+
+        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+        throw error
+      }
+
+      res.status(200).json({
+        message: 'Post fetched',
+        post: post,
+      })
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500
+      }
+      console.log('Error from getPost Post.findById(): ', err)
 
       // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
       next(err)
