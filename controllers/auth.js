@@ -4,8 +4,12 @@ const { validationResult } = require('express-validator/check')
 // Хэширование пароля
 const bcrypt = require('bcryptjs')
 
-const User = require('../models/user')
+const jwt = require('jsonwebtoken')
 
+const User = require('../models/user')
+const { json } = require('body-parser')
+
+// Регистрация (создание пользователя)
 exports.signup = (req, res, next) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -41,7 +45,63 @@ exports.signup = (req, res, next) => {
       if (!err.statusCode) {
         err.statusCode = 500
       }
-      console.log('Error from signup bcrypt.hash: ', err)
+      console.log('Error from auth.controller -> signup -> bcrypt.hash: ', err)
+
+      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+      next(err)
+    })
+}
+
+// Авторизация
+exports.login = (req, res, next) => {
+  const email = req.body.email
+  const password = req.body.password
+
+  let loadedUser
+
+  User.findOne({ email: email })
+    .then((user) => {
+      if (!user) {
+        const error = new Error('A user with this email could not be found')
+        error.statusCode = 401
+        throw error
+      }
+
+      loadedUser = user
+
+      return bcrypt.compare(password, user.password)
+    })
+    .then((isEqual) => {
+      if (!isEqual) {
+        const error = new Error('Wrong password')
+        error.statusCode = 401
+        throw error
+      }
+
+      // Первый параметр - шифруем в токен email и userId
+      // Второй параметр - секрет
+      // Третий параметр - необязательные опции. expiresIn - срок действия токена
+      const token = jwt.sign(
+        {
+          email: loadedUser.email,
+          userId: loadedUser._id.toString(),
+        },
+        'somesupersecretsecret',
+        {
+          expiresIn: '1h',
+        }
+      )
+
+      res.status(200).json({
+        token: token,
+        userId: loadedUser._id.toString(),
+      })
+    })
+    .catch((err) => {
+      if (!err.statusCode) {
+        err.statusCode = 500
+      }
+      console.log('Error from auth.controller -> login -> User.findOne: ', err)
 
       // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
       next(err)
