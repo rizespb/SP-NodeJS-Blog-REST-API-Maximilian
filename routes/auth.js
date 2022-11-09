@@ -7,7 +7,7 @@ const authController = require('../controllers/auth')
 
 const router = express.Router()
 
-// Создание пользователя (регистрация)
+// Создание пользователя (регистрация) PUT /auth/signup
 router.put(
   '/signup',
   [
@@ -22,7 +22,7 @@ router.put(
         })
       })
       .normalizeEmail(),
-    body('password').trim().isLength({ min: 5 }),
+    body('password').trim().isLength({ min: 4 }),
     body('name').trim().not().isEmpty(),
   ],
   authController.signup
