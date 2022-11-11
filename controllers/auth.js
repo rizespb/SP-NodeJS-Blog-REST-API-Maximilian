@@ -7,7 +7,6 @@ const bcrypt = require('bcryptjs')
 const jwt = require('jsonwebtoken')
 
 const User = require('../models/user')
-const { json } = require('body-parser')
 
 // Регистрация (создание пользователя)
 exports.signup = (req, res, next) => {
@@ -23,6 +22,7 @@ exports.signup = (req, res, next) => {
   const name = req.body.name
   const password = req.body.password
 
+  // Хэшируем пароль для сохранения в БД в виде хэша
   // 12 - salt
   bcrypt
     .hash(password, 12)
@@ -78,6 +78,7 @@ exports.login = (req, res, next) => {
         throw error
       }
 
+      // СОЗДАНИЕ JWT-токена
       // Первый параметр - шифруем в токен email и userId
       // Второй параметр - секрет
       // Третий параметр - необязательные опции. expiresIn - срок действия токена
