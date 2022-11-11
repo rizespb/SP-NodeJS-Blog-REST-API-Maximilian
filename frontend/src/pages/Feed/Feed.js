@@ -67,6 +67,7 @@ class Feed extends Component {
         return res.json()
       })
       .then((resData) => {
+        console.log(resData)
         this.setState({
           posts: resData.posts.map((post) => {
             return {
@@ -139,6 +140,10 @@ class Feed extends Component {
     fetch(url, {
       method: method,
       body: formData,
+      headers: {
+        // Использование Bearer - это договоренность. Не обязательно
+        Authorization: 'Bearer ' + this.props.token,
+      },
     })
       .then((res) => {
         if (res.status !== 200 && res.status !== 201) {
@@ -193,6 +198,10 @@ class Feed extends Component {
     this.setState({ postsLoading: true })
     fetch('http://localhost:8080/feed/post/' + postId, {
       method: 'DELETE',
+      headers: {
+        // Использование Bearer - это договоренность. Не обязательно
+        Authorization: 'Bearer ' + this.props.token,
+      },
     })
       .then((res) => {
         if (res.status !== 200 && res.status !== 201) {

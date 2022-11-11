@@ -16,7 +16,9 @@ const postSchema = new Schema(
       required: true,
     },
     creator: {
-      type: Object,
+      // Добавляем связь с юзером
+      type: Schema.Types.ObjectId,
+      ref: 'User',
       required: true,
     },
   },
@@ -25,5 +27,5 @@ const postSchema = new Schema(
   { timestamps: true }
 )
 
-// 
+//
 module.exports = mongoose.model('Post', postSchema)

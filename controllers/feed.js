@@ -5,6 +5,7 @@ const path = require('path')
 const { validationResult } = require('express-validator/check')
 
 const Post = require('../models/post')
+const User = require('../models/user')
 
 // Получить посты
 exports.getPosts = (req, res, next) => {
@@ -59,22 +60,33 @@ exports.createPost = (req, res, next) => {
   const imageUrl = req.file.path
   const title = req.body.title
   const content = req.body.content
+  let creator
 
   const post = new Post({
     title: title,
     content: content,
     imageUrl: imageUrl,
-    creator: {
-      name: 'Ivan',
-    },
+    creator: req.userId,
   })
 
   post
     .save()
     .then((result) => {
+      return User.findById(req.userId)
+    })
+    .then((user) => {
+      creator = user
+
+      // Несмотря на то, что user.posts - это массив _id постов, а Post - это целый пост, будет добавлен только post._id
+      user.posts.push(post)
+
+      return user.save()
+    })
+    .then((result) => {
       res.status(201).json({
         message: 'Post created successfully!',
-        post: result,
+        post: post,
+        creator: { _id: creator._id, name: creator.name },
       })
     })
     .catch((err) => {
