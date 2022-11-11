@@ -167,6 +167,15 @@ exports.updatePost = (req, res, next) => {
         throw error
       }
 
+      // Если постпытается обновить не создатель поста
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error('Not authorized')
+        error.statusCode = 403
+
+        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+        throw error
+      }
+
       // Если новый путь к изображению не равен новому (изображение обновили), удаляем старое изображение с сервера
       if (imageUrl !== post.imageUrl) {
         clearImage(post.imageUrl)
@@ -209,14 +218,30 @@ exports.deletePost = (req, res, next) => {
         throw error
       }
 
-      // Check logged in user
+      // Если постпытается обновить не создатель поста
+      if (post.creator.toString() !== req.userId) {
+        const error = new Error('Not authorized')
+        error.statusCode = 403
+
+        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+        throw error
+      }
 
       clearImage(post.imageUrl)
 
       return Post.findByIdAndRemove(postId)
     })
+    // Теперь удалим пост из масиива posts в объекте User
     .then((result) => {
-      console.log(result)
+      return User.findById(req.userId)
+    })
+    .then((user) => {
+      // pull - метод Mongoose - для удаления элемента по ID в массиве
+      user.posts.pull(postId)
+
+      return user.save()
+    })
+    .then((result) => {
       res.status(200).json({ message: 'Deleted post' })
     })
     .catch((err) => {
