@@ -81,6 +81,20 @@ app.use((error, req, res, next) => {
 mongoose
   .connect('mongodb+srv://testuser:testpassword@cluster0.qowv7.mongodb.net/blog?retryWrites=true&w=majority')
   .then((result) => {
-    app.listen(8080)
+    const server = app.listen(8080)
+
+    // Установка webSocket-соединения
+    // Начиная с версии Socket.IO v3 надо прописывать CORS-ы и для webSocket-соединения
+    const io = require('socket.io')(server, {
+      cors: {
+        origin: '*',
+        methods: ['GET', 'POST'],
+      },
+    })
+
+    // Переданный вторым аргументом коллбэк будет выполнен для каждого входящего webSocket запроса
+    io.on('connection', (socket) => {
+      console.log('Client connected with web-sockets')
+    })
   })
   .catch((err) => console.log('Error from app.js mongoose.connect: ', err))
