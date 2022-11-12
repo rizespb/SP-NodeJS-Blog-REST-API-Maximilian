@@ -9,7 +9,7 @@ const jwt = require('jsonwebtoken')
 const User = require('../models/user')
 
 // Регистрация (создание пользователя)
-exports.signup = (req, res, next) => {
+exports.signup = async (req, res, next) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     const error = new Error('Validation failed')
@@ -22,34 +22,32 @@ exports.signup = (req, res, next) => {
   const name = req.body.name
   const password = req.body.password
 
-  // Хэшируем пароль для сохранения в БД в виде хэша
-  // 12 - salt
-  bcrypt
-    .hash(password, 12)
-    .then((hashedPassword) => {
-      const user = new User({
-        email: email,
-        password: hashedPassword,
-        name: name,
-      })
+  try {
+    // Хэшируем пароль для сохранения в БД в виде хэша
+    // 12 - salt
+    const hashedPassword = await bcrypt.hash(password, 12)
 
-      return user.save()
+    const user = new User({
+      email: email,
+      password: hashedPassword,
+      name: name,
     })
-    .then((result) => {
-      res.status(201).json({
-        message: 'User created',
-        userId: result._id,
-      })
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500
-      }
-      console.log('Error from auth.controller -> signup -> bcrypt.hash: ', err)
 
-      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
-      next(err)
+    const result = await user.save()
+
+    res.status(201).json({
+      message: 'User created',
+      userId: result._id,
     })
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500
+    }
+    console.log('Error from auth.controller -> signup -> bcrypt.hash: ', err)
+
+    // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+    next(err)
+  }
 }
 
 // Авторизация
