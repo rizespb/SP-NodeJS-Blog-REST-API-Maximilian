@@ -4,6 +4,9 @@ const path = require('path')
 // Валидация
 const { validationResult } = require('express-validator/check')
 
+// webScokets
+const io = require('../socket')
+
 const Post = require('../models/post')
 const User = require('../models/user')
 
@@ -16,6 +19,10 @@ exports.getPosts = async (req, res, next) => {
     const totalItems = await Post.find().countDocuments()
 
     const posts = await Post.find()
+      // populate - в Post в поле creator мы храним только id автора. populate - наполняет в объектах post[] поле creator полными данными юзера с соответствующим id
+      .populate('creator')
+      // Сортируем по дате создания по убыванию
+      .sort({ createdAt: -1 })
       .skip((currentPage - 1) * perPage)
       .limit(perPage)
 
@@ -74,6 +81,13 @@ exports.createPost = async (req, res, next) => {
 
     await user.save()
 
+    // Отправляем данные по вебСокет
+    // broadcast - отправить сообщение всем юзерам, кроме инициатора текущего запроса (createPost)
+    // emit - отправить сообщение ВООБЩЕ всем юзерам
+    // 'posts' - любое имя для события
+    // второй аргумент - передаваемая информация
+    io.getIO().emit('posts', { action: 'create', post: { ...post._doc, creator: { _id: req.userId, name: user.name } } })
+
     res.status(201).json({
       message: 'Post created successfully!',
       post: post,
@@ -121,7 +135,7 @@ exports.getPost = (req, res, next) => {
 }
 
 // Обновление поста
-exports.updatePost = (req, res, next) => {
+exports.updatePost = async (req, res, next) => {
   const postId = req.params.postId
 
   const errors = validationResult(req)
@@ -147,102 +161,112 @@ exports.updatePost = (req, res, next) => {
     throw error
   }
 
-  Post.findById(postId)
-    .then((post) => {
-      if (!post) {
-        const error = new Error('Could not find post')
-        error.statusCode = 404
+  try {
+    // populate - в Post в поле creator мы храним только id автора. populate - наполняет в объекте post поле creator полными данными юзера с соответствующим id
+    const post = await Post.findById(postId).populate('creator')
 
-        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
-        throw error
-      }
+    if (!post) {
+      const error = new Error('Could not find post')
+      error.statusCode = 404
 
-      // Если постпытается обновить не создатель поста
-      if (post.creator.toString() !== req.userId) {
-        const error = new Error('Not authorized')
-        error.statusCode = 403
+      // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+      throw error
+    }
 
-        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
-        throw error
-      }
+    // Если постпытается обновить не создатель поста
+    if (post.creator._id.toString() !== req.userId) {
+      const error = new Error('Not authorized')
+      error.statusCode = 403
 
-      // Если новый путь к изображению не равен новому (изображение обновили), удаляем старое изображение с сервера
-      if (imageUrl !== post.imageUrl) {
-        clearImage(post.imageUrl)
-      }
+      // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+      throw error
+    }
 
-      post.title = title
-      post.imageUrl = imageUrl
-      post.content = content
+    // Если новый путь к изображению не равен новому (изображение обновили), удаляем старое изображение с сервера
+    if (imageUrl !== post.imageUrl) {
+      clearImage(post.imageUrl)
+    }
 
-      return post.save()
+    post.title = title
+    post.imageUrl = imageUrl
+    post.content = content
+
+    const result = await post.save()
+
+    // Отправляем данные по вебСокет
+    // broadcast - отправить сообщение всем юзерам, кроме инициатора текущего запроса (createPost)
+    // emit - отправить сообщение ВООБЩЕ всем юзерам
+    // 'posts' - любое имя для события
+    // второй аргумент - передаваемая информация
+    io.getIO().emit('posts', { action: 'update', post: result })
+
+    res.status(200).json({
+      message: 'Post updated!',
+      post: result,
     })
-    .then((result) => {
-      res.status(200).json({
-        message: 'Post updated!',
-        post: result,
-      })
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500
-      }
-      console.log('Error from getPost Post.findById(): ', err)
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500
+    }
+    console.log('Error from getPost Post.findById(): ', err)
 
-      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
-      next(err)
-    })
+    // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+    next(err)
+  }
 }
 
 // Удаление поста по ID
-exports.deletePost = (req, res, next) => {
+exports.deletePost = async (req, res, next) => {
   const postId = req.params.postId
 
-  Post.findById(postId)
-    .then((post) => {
-      if (!post) {
-        const error = new Error('Could not find post')
-        error.statusCode = 404
+  try {
+    const post = await Post.findById(postId)
 
-        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
-        throw error
-      }
+    if (!post) {
+      const error = new Error('Could not find post')
+      error.statusCode = 404
 
-      // Если постпытается обновить не создатель поста
-      if (post.creator.toString() !== req.userId) {
-        const error = new Error('Not authorized')
-        error.statusCode = 403
+      // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+      throw error
+    }
 
-        // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
-        throw error
-      }
+    // Если постпытается обновить не создатель поста
+    if (post.creator.toString() !== req.userId) {
+      const error = new Error('Not authorized')
+      error.statusCode = 403
 
-      clearImage(post.imageUrl)
+      // Ошибка попадает в catch, а catch прокинет ее в обработчик ошибок next(err)
+      throw error
+    }
 
-      return Post.findByIdAndRemove(postId)
-    })
+    clearImage(post.imageUrl)
+
+    await Post.findByIdAndRemove(postId)
+
     // Теперь удалим пост из масиива posts в объекте User
-    .then((result) => {
-      return User.findById(req.userId)
-    })
-    .then((user) => {
-      // pull - метод Mongoose - для удаления элемента по ID в массиве
-      user.posts.pull(postId)
+    const user = await User.findById(req.userId)
+    // pull - метод Mongoose - для удаления элемента по ID в массиве
+    user.posts.pull(postId)
 
-      return user.save()
-    })
-    .then((result) => {
-      res.status(200).json({ message: 'Deleted post' })
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500
-      }
-      console.log('Error from deletePost Post.findById(): ', err)
+    await user.save()
 
-      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
-      next(err)
-    })
+    // Отправляем данные по вебСокет
+    // broadcast - отправить сообщение всем юзерам, кроме инициатора текущего запроса (createPost)
+    // emit - отправить сообщение ВООБЩЕ всем юзерам
+    // 'posts' - любое имя для события
+    // второй аргумент - передаваемая информация
+    io.getIO().emit('posts', { action: 'delete', post: postId })
+
+    res.status(200).json({ message: 'Deleted post' })
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500
+    }
+    console.log('Error from deletePost Post.findById(): ', err)
+
+    // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+    next(err)
+  }
 }
 
 // Удаление страого изображения в случае загрузки нового изображения пр иобновлении поста

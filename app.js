@@ -83,14 +83,9 @@ mongoose
   .then((result) => {
     const server = app.listen(8080)
 
-    // Установка webSocket-соединения
+    // Инициализация webSocket-соединения
     // Начиная с версии Socket.IO v3 надо прописывать CORS-ы и для webSocket-соединения
-    const io = require('socket.io')(server, {
-      cors: {
-        origin: '*',
-        methods: ['GET', 'POST'],
-      },
-    })
+    const io = require('./socket').init(server)
 
     // Переданный вторым аргументом коллбэк будет выполнен для каждого входящего webSocket запроса
     io.on('connection', (socket) => {
