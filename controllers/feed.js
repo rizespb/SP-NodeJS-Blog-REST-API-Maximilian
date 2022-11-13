@@ -36,7 +36,7 @@ exports.getPosts = async (req, res, next) => {
 }
 
 // Создать новый пост
-exports.createPost = (req, res, next) => {
+exports.createPost = async (req, res, next) => {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     const error = new Error('Validation failed, entered data is incorrect')
@@ -64,35 +64,30 @@ exports.createPost = (req, res, next) => {
     creator: req.userId,
   })
 
-  post
-    .save()
-    .then((result) => {
-      return User.findById(req.userId)
-    })
-    .then((user) => {
-      creator = user
+  try {
+    await post.save()
 
-      // Несмотря на то, что user.posts - это массив _id постов, а Post - это целый пост, будет добавлен только post._id
-      user.posts.push(post)
+    const user = await User.findById(req.userId)
 
-      return user.save()
-    })
-    .then((result) => {
-      res.status(201).json({
-        message: 'Post created successfully!',
-        post: post,
-        creator: { _id: creator._id, name: creator.name },
-      })
-    })
-    .catch((err) => {
-      if (!err.statusCode) {
-        err.statusCode = 500
-      }
-      console.log('Error from createPost post.save(): ', err)
+    // Несмотря на то, что user.posts - это массив _id постов, а Post - это целый пост, будет добавлен только post._id
+    user.posts.push(post)
 
-      // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
-      next(err)
+    await user.save()
+
+    res.status(201).json({
+      message: 'Post created successfully!',
+      post: post,
+      creator: { _id: user._id, name: user.name },
     })
+  } catch (err) {
+    if (!err.statusCode) {
+      err.statusCode = 500
+    }
+    console.log('Error from createPost post.save(): ', err)
+
+    // Пробрасываем ошибку, чтобы сработал глобальный Error Handler в app.js
+    next(err)
+  }
 }
 
 // Получение отдельного поста
